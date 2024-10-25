@@ -9,6 +9,7 @@ SRCDIR ?= ./
 NO_MAN=
 CFLAGS = -O3 -pipe
 CFLAGS += -Werror -Wall -Wunused-function
+CFLAGS += -Wno-error=address-of-packed-member
 CFLAGS += -Wextra
 CFLAGS += -shared -fPIC
 
