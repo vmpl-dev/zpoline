@@ -22,5 +22,12 @@ all: $(PROGS)
 $(PROGS): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+install:
+	install -d $(DESTDIR)/usr/lib
+	install -m 0755 $(PROGS) $(DESTDIR)/usr/lib
+
+uninstall:
+	rm -f $(DESTDIR)/usr/lib/$(PROGS)
+
 clean:
 	-@rm -rf $(CLEANFILES)
