@@ -9,6 +9,12 @@
 					 : "=r"(var)         \
 					 : "r"(offset));
 
+#if __GCC__ >= 12
+#define vmgexit "vmgexit"
+#else
+#define vmgexit "rep; vmmcall"
+#endif
+
 static inline int irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & X86_EFLAGS_IF);
@@ -33,13 +39,8 @@ static inline unsigned long local_irq_save()
 
 static inline void local_irq_restore(unsigned long flags)
 {
-	unsigned short cs;
-	__asm__ __volatile__("movw %%cs, %0" : "=r"(cs));
-	if ((cs & 0x3) == 0)
-	{
-		if (!irqs_disabled_flags(flags))
-			local_irq_enable();
-	}
+	if (!irqs_disabled_flags(flags))
+		local_irq_enable();
 }
 
 #define GHCB_PROTOCOL_SWITCH 1
@@ -134,3 +135,21 @@ static inline void local_irq_restore(unsigned long flags)
         local_irq_restore(flags);    \
     } while (0)
 #endif
+
+static __inline bool is_ring0(void)
+{
+	unsigned short cs;
+	__asm__ __volatile__("movw %%cs, %0" : "=r"(cs));
+	return (cs & 0x3) == 0;
+}
+
+static __inline long vmgexit_syscall(long n, long a1, long a2, long a3, long a4, long a5, long a6)
+{
+	unsigned long ret;
+	register long r10 __asm__("r10") = a4;
+	register long r8 __asm__("r8") = a5;
+	register long r9 __asm__("r9") = a6;
+	__syscall_wrapper(__volatile__(vmgexit : "=a"(ret) : "a"(n), "D"(a1), "S"(a2),
+														 "d"(a3), "r"(r10), "r"(r8), "r"(r9) : "rcx", "r11", "memory"));
+	return ret;
+}
