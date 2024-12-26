@@ -45,12 +45,12 @@ static inline void local_irq_restore(unsigned long flags)
 
 #define GHCB_PROTOCOL_SWITCH 1
 #ifdef GHCB_PROTOCOL_COMPLETE
-#define __msr_protocol(__vmgexit)                       \
+#define __msr_protocol(__vmgexit, vmpl)                       \
 	do                                                  \
 	{                                                   \
 		unsigned long val, resp;                        \
 		val = __rdmsr(GHCB_MSR);                        \
-		__wrmsr(GHCB_MSR, GHCB_MSR_VMPL_REQ_LEVEL(0));  \
+		__wrmsr(GHCB_MSR, GHCB_MSR_VMPL_REQ_LEVEL(vmpl));  \
 		__asm__ __vmgexit;                              \
 		resp = __rdmsr(GHCB_MSR);                       \
 		__wrmsr(GHCB_MSR, val);                         \
@@ -77,10 +77,10 @@ static inline void local_irq_restore(unsigned long flags)
 			return -ENOSYS;                                    \
 	} while (0)
 #else
-#define __msr_protocol(__vmgexit)                      \
+#define __msr_protocol(__vmgexit, vmpl)                      \
 	do                                                 \
 	{                                                  \
-		__wrmsr(GHCB_MSR, GHCB_MSR_VMPL_REQ_LEVEL(0)); \
+		__wrmsr(GHCB_MSR, GHCB_MSR_VMPL_REQ_LEVEL(vmpl)); \
 		__asm__ __vmgexit;                             \
 	} while (0)
 
@@ -102,17 +102,17 @@ static inline void local_irq_restore(unsigned long flags)
     {                                   \
         unsigned long flags;            \
         flags = local_irq_save();       \
+		uint64_t vmpl; \
+		percpu(vmpl, VMPL); \
         struct ghcb *ghcb;              \
         percpu(ghcb, GHCB);             \
         if (ghcb)                       \
         {                               \
-			uint64_t vmpl; \
-			percpu(vmpl, VMPL); \
             __ghcb_protocol(__vmgexit, vmpl); \
         }                               \
         else                            \
         {                               \
-            __msr_protocol(__vmgexit);  \
+            __msr_protocol(__vmgexit, vmpl);  \
         }                               \
         local_irq_restore(flags);       \
     } while (0)
@@ -135,7 +135,9 @@ static inline void local_irq_restore(unsigned long flags)
     {                                \
         unsigned long flags;         \
         flags = local_irq_save();    \
-        __msr_protocol(__vmgexit);   \
+		uint64_t vmpl; \
+		percpu(vmpl, VMPL); \
+        __msr_protocol(__vmgexit, vmpl);   \
         local_irq_restore(flags);    \
     } while (0)
 #endif

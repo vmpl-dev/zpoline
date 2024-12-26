@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <app>"
+    echo "Usage: $0 <app> <args>"
     exit 1
 fi
 
@@ -12,4 +12,4 @@ export LIBZPHOOK=./apps/basic/libzphook_basic.so
 # To use zpoline, please set 0 to ```/proc/sys/vm/mmap_min_addr```.
 sudo sh -c "echo 0 > /proc/sys/vm/mmap_min_addr"
 
-LD_PRELOAD=libdunify.so:./libzpoline.so $(which $1)
+LD_PRELOAD=libdunify.so:./libzpoline.so $(which $1) $@
