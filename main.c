@@ -342,7 +342,7 @@ static void disassemble_and_rewrite(char *code, size_t code_size, int mem_prot)
 	disasm_info.buffer_length = code_size;
 	disassemble_init_for_target(&disasm_info);
 	disassembler_ftype disasm;
-#if defined(DIS_ASM_VER_229) || defined(DIS_ASM_VER_239)
+#if defined(DIS_ASM_VER_229) || defined(DIS_ASM_VER_239) || defined(DIS_ASM_VER_238)
 	disasm = disassembler(bfd_arch_i386, false, bfd_mach_x86_64, NULL);
 #else
 	bfd _bfd = { .arch_info = bfd_scan_arch("i386"), };
@@ -356,6 +356,18 @@ static void disassemble_and_rewrite(char *code, size_t code_size, int mem_prot)
 	assert(!mprotect(code, code_size, mem_prot));
 }
 
+// White list for the libraries that we do not want to rewrite
+// We do not touch stack and vsyscall memory
+static char *white_list[] = {
+	"libzpoline", 
+	"libvmpl",
+	"libdune",
+	"libdunify",
+	"stack",
+	"vsyscall",
+	NULL,
+};
+
 /* entry point for binary rewriting */
 static void rewrite_code(void)
 {
@@ -365,8 +377,17 @@ static void rewrite_code(void)
 	{
 		char buf[4096];
 		while (fgets(buf, sizeof(buf), fp) != NULL) {
+			// skip the line if it is in the white list
+			bool skip = false;
+			for (int i = 0; white_list[i] != NULL; i++) {
+				if (strstr(buf, white_list[i]) != NULL) {
+					fprintf(stderr, "skip the %s\n", white_list[i]);
+					skip = true;
+					break;
+				}
+			}
 			/* we do not touch stack and vsyscall memory */
-			if (((strstr(buf, "stack") == NULL) && (strstr(buf, "vsyscall") == NULL))) {
+			if (!skip) {
 				int i = 0;
 				char addr[65] = { 0 };
 				char *c = strtok(buf, " ");

@@ -2,7 +2,7 @@
 
 #define X86_EFLAGS_IF 0x200
 #define GHCB		216
-#define VMPL 		0ULL
+#define VMPL 		232
 
 #define percpu(var, offset)              \
 	__asm__ volatile("mov %%gs:(%1), %0" \
@@ -60,14 +60,14 @@ static inline void local_irq_restore(unsigned long flags)
 			ret = -ENOSYS;                              \
 	} while (0)
 
-#define __ghcb_protocol(__vmgexit)                             \
+#define __ghcb_protocol(__vmgexit, vmpl)                             \
 	do                                                         \
 	{                                                          \
 		uint64_t sw_exit_info_1;                               \
 		ghcb->protocol_version = GHCB_PROTOCOL_MIN;            \
 		ghcb->ghcb_usage = GHCB_DEFAULT_USAGE;                 \
 		ghcb_set_sw_exit_code(ghcb, SVM_VMGEXIT_SNP_RUN_VMPL); \
-		ghcb_set_sw_exit_info_1(ghcb, VMPL);                   \
+		ghcb_set_sw_exit_info_1(ghcb, vmpl);                   \
 		ghcb_set_sw_exit_info_2(ghcb, 0ULL);                   \
 		__asm__ __vmgexit;                                     \
 		sw_exit_info_1 = ghcb_get_sw_exit_info_1(ghcb);        \
@@ -84,13 +84,13 @@ static inline void local_irq_restore(unsigned long flags)
 		__asm__ __vmgexit;                             \
 	} while (0)
 
-#define __ghcb_protocol(__vmgexit)                             \
+#define __ghcb_protocol(__vmgexit, vmpl)                             \
 	do                                                         \
 	{                                                          \
 		ghcb->protocol_version = GHCB_PROTOCOL_MIN;            \
 		ghcb->ghcb_usage = GHCB_DEFAULT_USAGE;                 \
 		ghcb_set_sw_exit_code(ghcb, SVM_VMGEXIT_SNP_RUN_VMPL); \
-		ghcb_set_sw_exit_info_1(ghcb, VMPL);                   \
+		ghcb_set_sw_exit_info_1(ghcb, vmpl);                   \
 		ghcb_set_sw_exit_info_2(ghcb, 0ULL);                   \
 		__asm__ __vmgexit;                                     \
 	} while (0)
@@ -106,7 +106,9 @@ static inline void local_irq_restore(unsigned long flags)
         percpu(ghcb, GHCB);             \
         if (ghcb)                       \
         {                               \
-            __ghcb_protocol(__vmgexit); \
+			uint64_t vmpl; \
+			percpu(vmpl, VMPL); \
+            __ghcb_protocol(__vmgexit, vmpl); \
         }                               \
         else                            \
         {                               \
@@ -120,9 +122,11 @@ static inline void local_irq_restore(unsigned long flags)
     {                                \
         unsigned long flags;         \
         flags = local_irq_save();    \
+		uint64_t vmpl; \
+		percpu(vmpl, VMPL); \
         struct ghcb *ghcb;           \
         percpu(ghcb, GHCB);          \
-        __ghcb_protocol(__vmgexit);  \
+        __ghcb_protocol(__vmgexit, vmpl);  \
         local_irq_restore(flags);    \
     } while (0)
 #else // MSR_PROTOCOL
