@@ -381,7 +381,9 @@ static void rewrite_code(void)
 			bool skip = false;
 			for (int i = 0; white_list[i] != NULL; i++) {
 				if (strstr(buf, white_list[i]) != NULL) {
+#if DEBUG
 					fprintf(stderr, "skip the %s\n", white_list[i]);
+#endif
 					skip = true;
 					break;
 				}
